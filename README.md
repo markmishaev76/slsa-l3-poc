@@ -1,147 +1,172 @@
-# Supply Chain Security - Code-to-Cloud Traceability PoC
+# GitHub SLSA L3 & Artifact Metadata - Analysis & Experimentation
 
-This PoC demonstrates GitHub's new supply chain security features for achieving **SLSA Build Level 3** security with code-to-cloud traceability.
+Analysis and hands-on experimentation with GitHub's [January 2026 announcement](https://github.blog/changelog/2026-01-20-strengthen-your-supply-chain-with-code-to-cloud-traceability-and-slsa-build-level-3-security/) on code-to-cloud traceability and SLSA Build Level 3.
 
-## Overview
+## TL;DR - What GitHub Actually Shipped
 
-Based on the [GitHub Changelog announcement](https://github.blog/changelog/2026-01-20-strengthen-your-supply-chain-with-code-to-cloud-traceability-and-slsa-build-level-3-security/), this PoC implements:
+| Feature | What It Does | SLSA Related? |
+|---------|--------------|---------------|
+| **Artifact Attestations** | Cryptographic provenance (Sigstore) | ✅ Yes - enables SLSA L2/L3 |
+| **Storage Records API** | Track where artifacts are stored | ❌ No - operational metadata |
+| **Deployment Records API** | Track where artifacts are deployed + runtime risk | ❌ No - operational metadata |
+| **Alert Filters** | `has:deployment`, `runtime-risk:high` | ❌ No - prioritization tool |
 
-### 1. Artifact Attestations
-Cryptographically bind build artifacts to their source repository and build workflow using GitHub's `attest-build-provenance` action.
+**Key Insight:** The article conflates two separate features. Only artifact attestations relate to SLSA. The metadata APIs are operational tools for vulnerability prioritization.
 
-### 2. Storage Records
-Track where your artifacts (containers, binaries) are stored in package registries via the new REST API.
+## SLSA Build Level 3 - The Reality
 
-### 3. Deployment Records
-Capture where artifacts are deployed and runtime risk factors (internet exposure, sensitive data processing).
+### What's Required for L3
 
-### 4. Production-Context Security Filtering
-Filter Dependabot and code scanning alerts based on what's actually deployed in production.
-
-## Architecture
+SLSA L3 requires **build isolation** — the build process must be tamper-resistant. On GitHub, this means using **reusable workflows**:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          GitHub Actions Workflow                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐    ┌──────────────────┐    ┌─────────────────────────────┐ │
-│  │   Build     │───>│ Attest Artifact  │───>│ Push to Registry            │ │
-│  │  (Binary/   │    │ (SLSA L3 Prov.)  │    │ + Create Storage Record     │ │
-│  │  Container) │    └──────────────────┘    └─────────────────────────────┘ │
-│  └─────────────┘                                         │                   │
-└──────────────────────────────────────────────────────────│───────────────────┘
-                                                           │
-                                                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           GitHub Artifact View                               │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │ Artifact: openbao:v2.1.0-rc1                                            ││
-│  │ ├── Attestations: build-provenance, sbom, vulnerability-scan            ││
-│  │ ├── Storage: ghcr.io/openbao/openbao:v2.1.0-rc1                        ││
-│  │ └── Deployments: staging (low risk), production (high risk - exposed)  ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────────┘
-                                                           │
-                                                           ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Security Alert Filtering                             │
-│  ┌─────────────────────────────────────────────────────────────────────────┐│
-│  │ Filters: has:deployment runtime-risk:high artifact-registry:ghcr.io    ││
-│  │ Result: 3 critical CVEs affecting production workloads                 ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    SLSA BUILD LEVEL 2                           │
+│              (Single workflow - NO isolation)                   │
+├─────────────────────────────────────────────────────────────────┤
+│   .github/workflows/build.yml                                   │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │  jobs:                                                   │   │
+│   │    build:                                                │   │
+│   │      steps:                                              │   │
+│   │        - name: Build              ◄── Can be modified    │   │
+│   │        - name: Attest             ◄── Can be modified    │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│   ⚠️  Anyone with write access can modify both build & attest   │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    SLSA BUILD LEVEL 3                           │
+│              (Reusable workflow - ISOLATED)                     │
+├─────────────────────────────────────────────────────────────────┤
+│   ci.yml (CALLER)              slsa-l3-reusable.yml (REUSABLE)  │
+│   ┌───────────────────┐       ┌───────────────────────────────┐ │
+│   │ uses: ...reusable │──────▶│ on: workflow_call             │ │
+│   │ with:             │inputs │   steps:                      │ │
+│   │   image: myapp    │ only  │     - Build  ◄── ISOLATED     │ │
+│   └───────────────────┘       │     - Attest ◄── ISOLATED     │ │
+│                               └───────────────────────────────┘ │
+│   ✅ Caller cannot modify build/attestation logic               │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## Files in this PoC
+### Verification Commands
 
-| File | Description |
-|------|-------------|
-| `.github/workflows/build-attest.yml` | GitHub Actions workflow with artifact attestation |
-| `scripts/create-storage-record.sh` | Create storage records via REST API |
-| `scripts/create-deployment-record.sh` | Create deployment records via REST API |
-| `scripts/query-linked-artifacts.sh` | Query linked artifacts and their metadata |
-| `scripts/filter-security-alerts.sh` | Filter security alerts by production context |
-| `examples/api-payloads/` | Example JSON payloads for the APIs |
+```bash
+# SLSA L2: Checks signature exists
+gh attestation verify oci://IMAGE --owner OWNER
 
-## Quick Start
+# SLSA L3: Checks it came from specific trusted workflow
+gh attestation verify oci://IMAGE --owner OWNER \
+    --signer-workflow OWNER/REPO/.github/workflows/slsa-l3-reusable.yml
+```
+
+## Repository Structure
+
+```
+.
+├── .github/workflows/
+│   ├── slsa-l3-reusable.yml    # ✅ SLSA L3 reusable workflow (isolated)
+│   ├── ci.yml                   # Caller workflow (triggers reusable)
+│   └── build-attest.yml         # ⚠️  Original L2-only workflow
+├── experiment/                   # Hands-on experimentation scripts
+│   ├── 01-setup.sh              # Check prerequisites
+│   ├── 02-create-test-repo.sh   # Create test repo with SLSA L3
+│   ├── 03-verify-attestation.sh # Verify attestations (L2 and L3)
+│   ├── 04-test-metadata-apis.sh # Test new metadata APIs
+│   └── 05-compare-l2-vs-l3.sh   # Visual L2 vs L3 comparison
+├── scripts/                      # API interaction scripts
+│   ├── create-storage-record.sh
+│   ├── create-deployment-record.sh
+│   ├── query-linked-artifacts.sh
+│   └── filter-security-alerts.sh
+├── examples/api-payloads/        # Example JSON payloads
+└── Dockerfile                    # Simple test container
+```
+
+## Quick Start - Experimentation
 
 ### Prerequisites
-- GitHub repository with Actions enabled
-- `GITHUB_TOKEN` with appropriate permissions
-- Container registry (GHCR, Docker Hub, or JFrog Artifactory)
 
-### 1. Setup the Workflow
+- GitHub CLI (`gh`) authenticated
+- Docker installed
+- `jq` for JSON parsing
 
-Copy the workflow file to your repository:
-
-```bash
-cp .github/workflows/build-attest.yml <your-repo>/.github/workflows/
-```
-
-### 2. Build with Attestation
-
-The workflow automatically:
-- Builds your container/binary
-- Creates SLSA Build Level 3 provenance attestation
-- Pushes to your registry
-- Creates a storage record linking the artifact to GitHub
-
-### 3. Add Deployment Records
-
-When deploying to production, call the deployment record API:
+### Run the Experiment
 
 ```bash
-./scripts/create-deployment-record.sh \
-  --artifact-digest "sha256:abc123..." \
-  --environment "production" \
-  --runtime-risk "high" \
-  --internet-exposed "true"
+cd experiment
+
+# 1. Check prerequisites
+./01-setup.sh
+
+# 2. Create a test repo (PUBLIC required for Sigstore)
+./02-create-test-repo.sh
+
+# 3. Wait ~2 min for workflow, then verify
+./03-verify-attestation.sh YOUR_USER/slsa-l3-experiment
+
+# 4. Test the new metadata APIs
+./04-test-metadata-apis.sh YOUR_USER/slsa-l3-experiment
 ```
 
-### 4. Filter Security Alerts
+## Artifact Metadata APIs (Not SLSA)
 
-Query alerts affecting your production deployments:
+These APIs provide **operational visibility**, not security guarantees:
 
+### Storage Records
 ```bash
-./scripts/filter-security-alerts.sh \
-  --filter "has:deployment runtime-risk:high"
+POST /orgs/{org}/packages/container/{package}/versions/{digest}/storage-records
+
+{
+  "registry_url": "ghcr.io/org/package:v1.0.0",
+  "registry_name": "GitHub Container Registry"
+}
 ```
 
-## Security Benefits
+### Deployment Records
+```bash
+POST /orgs/{org}/packages/container/{package}/versions/{digest}/deployment-records
 
-| Feature | Benefit |
-|---------|---------|
-| **SLSA Build Level 3** | Cryptographic proof artifacts came from trusted build |
-| **Storage Records** | Track artifact locations across registries |
-| **Deployment Records** | Know what's running in production |
-| **Runtime Risk Tagging** | Prioritize by actual exposure |
-| **Alert Filtering** | Focus on vulnerabilities that matter |
-
-## API Reference
-
-### Storage Record Endpoint
-```
-POST /orgs/{org}/packages/{package_type}/{package_name}/versions/{version_id}/storage-records
+{
+  "environment": "production",
+  "runtime_risk": {
+    "internet_exposed": true,
+    "processes_sensitive_data": true,
+    "risk_level": "high"
+  }
+}
 ```
 
-### Deployment Record Endpoint
-```
-POST /orgs/{org}/packages/{package_type}/{package_name}/versions/{version_id}/deployment-records
-```
+### New Security Alert Filters
+- `has:deployment` — Alerts affecting deployed artifacts
+- `runtime-risk:high` — Filter by risk level
+- `artifact-registry:ghcr.io` — Filter by registry
 
-### Query Linked Artifacts
-```
-GET /orgs/{org}/linked-artifacts
-```
+## SLSA v1.2 Conformance Analysis
 
-## Partner Integrations
+| Requirement | GitHub Status | Notes |
+|-------------|---------------|-------|
+| **Build L1** (Provenance exists) | ✅ | `attest-build-provenance` action |
+| **Build L2** (Signed provenance) | ✅ | Sigstore signing |
+| **Build L3** (Hardened builds) | ⚠️ Conditional | Requires reusable workflows |
+| **Hermetic builds** | ❌ | Not enforced |
+| **Reproducible builds** | ❌ | Not enforced |
+| **Source Track** | ❌ | Not addressed |
 
-- **Microsoft Defender for Cloud**: Automatically sends deployment and runtime data
-- **JFrog Artifactory**: Provides storage and promotion context
+## Comparison: GitHub vs GitLab
+
+| Aspect | GitHub | GitLab |
+|--------|--------|--------|
+| **Provenance Generation** | Client-side (runner) | Server-side (control plane) |
+| **L3 Isolation** | User must configure reusable workflows | Automatic (server-side) |
+| **Private Projects** | ✅ Supported | ❌ Public only (current) |
+| **Status** | ✅ GA | ⚠️ Experiment |
+| **Self-Managed** | N/A | Limited (hardcoded Sigstore) |
 
 ## References
 
-- [GitHub Blog Announcement](https://github.blog/changelog/2026-01-20-strengthen-your-supply-chain-with-code-to-cloud-traceability-and-slsa-build-level-3-security/)
-- [About Linked Artifacts (GitHub Docs)](https://docs.github.com/en/code-security/supply-chain-security/about-linked-artifacts)
-- [Artifact Metadata API Reference](https://docs.github.com/en/rest/packages/artifact-metadata)
-- [SLSA Framework](https://slsa.dev/)
+- [GitHub Changelog Announcement](https://github.blog/changelog/2026-01-20-strengthen-your-supply-chain-with-code-to-cloud-traceability-and-slsa-build-level-3-security/)
+- [GitHub Docs: SLSA L3 with Reusable Workflows](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations/using-artifact-attestations-and-reusable-workflows-to-achieve-slsa-v1-build-level-3)
+- [SLSA v1.2 Specification](https://slsa.dev/spec/v1.2/)
+- [Sigstore Documentation](https://docs.sigstore.dev/)
