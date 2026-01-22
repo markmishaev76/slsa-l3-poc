@@ -1,0 +1,104 @@
+{
+  "description": "Example response from the linked artifacts API",
+  "endpoint": "GET /orgs/{org}/linked-artifacts",
+  "response": {
+    "artifacts": [
+      {
+        "id": 12345,
+        "name": "openbao",
+        "package_type": "container",
+        "digest": "sha256:abc123def456789...",
+        "version": "v2.1.0-rc1",
+        "created_at": "2026-01-20T10:00:00Z",
+        "source": {
+          "repository": "openbao/openbao",
+          "commit_sha": "abc123def456",
+          "branch": "main",
+          "workflow": "Build and Attest Artifacts",
+          "run_id": 9876543210
+        },
+        "attestations": [
+          {
+            "type": "build-provenance",
+            "predicate_type": "https://slsa.dev/provenance/v1",
+            "created_at": "2026-01-20T10:15:00Z",
+            "slsa_level": 3,
+            "verified": true
+          },
+          {
+            "type": "sbom",
+            "predicate_type": "https://spdx.github.io/spdx-spec/v2.3/",
+            "created_at": "2026-01-20T10:16:00Z",
+            "format": "spdx-json",
+            "verified": true
+          },
+          {
+            "type": "vulnerability-scan",
+            "predicate_type": "https://cosign.sigstore.dev/attestation/vuln/v1",
+            "created_at": "2026-01-20T10:17:00Z",
+            "scanner": "trivy",
+            "verified": true
+          }
+        ],
+        "storage_records": [
+          {
+            "id": 1001,
+            "registry_url": "ghcr.io/openbao/openbao:v2.1.0-rc1",
+            "registry_name": "GitHub Container Registry",
+            "created_at": "2026-01-20T10:15:00Z"
+          },
+          {
+            "id": 1002,
+            "registry_url": "jfrog.example.com/prod/openbao:v2.1.0-rc1",
+            "registry_name": "JFrog Artifactory (Production)",
+            "created_at": "2026-01-21T08:00:00Z",
+            "promoted_from": "ghcr.io/openbao/openbao:v2.1.0-rc1",
+            "promotion_policy": "staging-to-prod"
+          }
+        ],
+        "deployment_records": [
+          {
+            "id": 2001,
+            "environment": "staging",
+            "deployment_timestamp": "2026-01-20T12:00:00Z",
+            "cloud_provider": "kubernetes",
+            "cluster_name": "staging-cluster",
+            "namespace": "openbao",
+            "runtime_risk": {
+              "internet_exposed": false,
+              "processes_sensitive_data": true,
+              "risk_level": "medium"
+            }
+          },
+          {
+            "id": 2002,
+            "environment": "production",
+            "deployment_timestamp": "2026-01-21T09:00:00Z",
+            "cloud_provider": "kubernetes",
+            "cluster_name": "prod-us-east-1",
+            "namespace": "openbao-system",
+            "region": "us-east-1",
+            "replicas": 3,
+            "runtime_risk": {
+              "internet_exposed": true,
+              "processes_sensitive_data": true,
+              "risk_level": "high",
+              "risk_factors": [
+                "internet-exposed",
+                "handles-secrets"
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "total_count": 1,
+    "has_more": false
+  },
+  "notes": [
+    "Each artifact includes its attestations (SLSA provenance, SBOM, etc.)",
+    "Storage records show where the artifact is stored across registries",
+    "Deployment records show where the artifact is deployed with runtime risk",
+    "This unified view enables code-to-cloud traceability"
+  ]
+}

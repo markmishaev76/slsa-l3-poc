@@ -1,0 +1,69 @@
+{
+  "description": "Examples of new production-context filters for security alerts",
+  "documentation_url": "https://docs.github.com/en/code-security/dependabot/dependabot-alerts/viewing-and-updating-dependabot-alerts#filtering-dependabot-alerts",
+  "new_filters": {
+    "has:deployment": {
+      "description": "Only show alerts affecting artifacts that have been deployed",
+      "example": "https://github.com/openbao/openbao/security/dependabot?q=has:deployment",
+      "use_case": "Focus on vulnerabilities in running software, not just in repos"
+    },
+    "runtime-risk": {
+      "description": "Filter by the runtime risk level of deployed artifacts",
+      "values": ["low", "medium", "high", "critical"],
+      "example": "https://github.com/openbao/openbao/security/dependabot?q=runtime-risk:high",
+      "use_case": "Prioritize fixes for high-risk deployments first"
+    },
+    "artifact-registry": {
+      "description": "Filter by registry where artifacts are stored",
+      "example": "https://github.com/openbao/openbao/security/dependabot?q=artifact-registry:ghcr.io",
+      "use_case": "Focus on artifacts in specific registries (e.g., production registries)"
+    },
+    "artifact-registry-url": {
+      "description": "Filter by exact registry URL",
+      "example": "https://github.com/openbao/openbao/security/dependabot?q=artifact-registry-url:ghcr.io/openbao/openbao",
+      "use_case": "Target specific artifact paths"
+    }
+  },
+  "combined_filter_examples": [
+    {
+      "query": "has:deployment runtime-risk:high severity:critical",
+      "description": "Critical vulnerabilities in high-risk production deployments - FIX IMMEDIATELY"
+    },
+    {
+      "query": "has:deployment runtime-risk:critical internet-exposed:true",
+      "description": "Vulnerabilities in internet-exposed critical workloads"
+    },
+    {
+      "query": "artifact-registry:ghcr.io has:deployment",
+      "description": "All alerts for GHCR artifacts that are deployed"
+    },
+    {
+      "query": "has:deployment severity:high epss:>=0.5",
+      "description": "High severity alerts with >50% EPSS score in deployed artifacts"
+    },
+    {
+      "query": "has:deployment -runtime-risk:low",
+      "description": "All deployed artifacts excluding low-risk deployments"
+    }
+  ],
+  "api_usage": {
+    "dependabot_alerts": {
+      "endpoint": "GET /orgs/{org}/dependabot/alerts",
+      "query_param": "q",
+      "example": "GET /orgs/openbao/dependabot/alerts?q=has:deployment+runtime-risk:high"
+    },
+    "code_scanning_alerts": {
+      "endpoint": "GET /orgs/{org}/code-scanning/alerts",
+      "query_param": "q",
+      "example": "GET /orgs/openbao/code-scanning/alerts?q=has:deployment+severity:critical"
+    }
+  },
+  "security_campaigns": {
+    "description": "You can also use these filters when creating security campaigns",
+    "example": {
+      "name": "Critical Production Vulnerabilities Q1 2026",
+      "filter": "has:deployment runtime-risk:high severity:critical",
+      "target": "Fix all critical vulnerabilities in high-risk production deployments"
+    }
+  }
+}

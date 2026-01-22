@@ -1,0 +1,34 @@
+{
+  "description": "Example deployment record payload for linking an artifact to its deployment location",
+  "endpoint": "POST /orgs/{org}/packages/{package_type}/{package_name}/versions/{digest}/deployment-records",
+  "payload": {
+    "environment": "production",
+    "deployment_timestamp": "2026-01-22T14:00:00Z",
+    "cloud_provider": "kubernetes",
+    "cluster_name": "prod-us-east-1",
+    "namespace": "openbao-system",
+    "region": "us-east-1",
+    "replicas": 3,
+    "runtime_risk": {
+      "internet_exposed": true,
+      "processes_sensitive_data": true,
+      "risk_level": "high",
+      "risk_factors": [
+        "internet-exposed",
+        "handles-secrets",
+        "privileged-container"
+      ]
+    },
+    "deployment_metadata": {
+      "deployed_by": "github-actions",
+      "deployment_id": "deploy-12345",
+      "rollout_strategy": "rolling-update"
+    }
+  },
+  "notes": [
+    "environment is required - production, staging, development, etc.",
+    "runtime_risk enables filtering alerts by has:deployment and runtime-risk filters",
+    "internet_exposed and processes_sensitive_data help prioritize vulnerability remediation",
+    "This allows filtering security alerts to focus on what's actually running in production"
+  ]
+}
