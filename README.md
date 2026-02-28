@@ -1,5 +1,7 @@
 # GitHub SLSA L3 & Artifact Metadata - Analysis & Experimentation
 
+[![AI Harness Scorecard](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmarkmishaev76%2Fslsa-l3-poc%2Fmain%2Fscorecard-badge.json)](https://github.com/markmishaev76/ai-harness-scorecard)
+
 Analysis and hands-on experimentation with GitHub's [January 2026 announcement](https://github.blog/changelog/2026-01-20-strengthen-your-supply-chain-with-code-to-cloud-traceability-and-slsa-build-level-3-security/) on code-to-cloud traceability and SLSA Build Level 3.
 
 ## TL;DR - What GitHub Actually Shipped
