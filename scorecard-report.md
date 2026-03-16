@@ -4,7 +4,7 @@
 
 - **Repository**: `/home/runner/work/slsa-l3-poc/slsa-l3-poc`
 - **Languages**: none detected
-- **Assessed**: 2026-03-09 06:51 UTC
+- **Assessed**: 2026-03-16 07:06 UTC
 - **Checks**: 5/31 passed
 
 ## Summary
@@ -131,7 +131,7 @@ _Kent Beck - tests define what correct means_
 
 _DORA 2025 - stability through comprehensive testing_
 
-**Evidence**: Multiple test jobs in CI: build-and-attest, create-deployment-record, verify
+**Evidence**: Multiple test jobs in CI: build-and-attest, create-deployment-record, build-binary, verify, build
 
 ### [FAIL] Code Coverage (0/4)
 
@@ -155,7 +155,7 @@ _Blog: catching edge cases in AI-generated code_
 
 **Evidence**: No property-based testing found
 
-**Remediation**: Add proptest (Rust), hypothesis (Python), or fast-check (JS/TS) for testing invariants with random structured inputs.
+**Remediation**: Add proptest (Rust), hypothesis (Python), fast-check (JS/TS), or jqwik (Java) for testing invariants with random structured inputs.
 
 ### [FAIL] Fuzz Testing (0/3)
 
@@ -177,7 +177,7 @@ _OpenAI Harness Engineering - mechanical constraints_
 
 _DORA 2025 - stability metrics_
 
-**Evidence**: All test jobs are blocking: build-and-attest, create-deployment-record, create-storage-record
+**Evidence**: All test jobs are blocking: build-and-attest, create-deployment-record, build-binary
 
 
 ## Review & Drift Prevention (33%)
