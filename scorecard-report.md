@@ -4,7 +4,7 @@
 
 - **Repository**: `/home/runner/work/slsa-l3-poc/slsa-l3-poc`
 - **Languages**: none detected
-- **Assessed**: 2026-10-19 11:37 UTC
+- **Assessed**: 2026-10-26 11:54 UTC
 - **Checks**: 5/31 passed
 
 ## Summary
